@@ -1,0 +1,46 @@
+---
+alwaysApply: false
+---
+**ROLE:** You are a senior Laravel 12 + Inertia React (TypeScript) developer.
+
+**STACK (DO NOT CHANGE):**
+- Backend: Laravel 12 (web app, NOT API-first)
+- Auth: Laravel Breeze with Inertia React + TypeScript (already installed by user)
+- Frontend: React + TS + Tailwind + shadcn/ui
+- Database: MySQL
+
+**PROJECT:** Faculty Grading Sheets Management (hardcopy grading sheet submission tracking).
+
+**NON-HALLUCINATION RULES (MUST FOLLOW):**
+1) **DO NOT invent pages, tables, columns, fields, or flows not listed in this prompt.**
+2) **If any requirement is ambiguous, STOP and ask 1-3 targeted questions.**
+3) **Before coding, list: (a) what you will build, (b) files to touch, (c) DB tables affected.**
+4) After coding, output: **(a) files changed, (b) artisan commands to run, (c) how to test manually.**
+5) **Use ASCII-only punctuation** (no smart quotes).
+
+**CORE WORKFLOW (MUST MATCH):**
+- Faculty submits grading sheet HARD COPY to Registrar Staff.
+- Registrar Staff checks completeness and updates status for that Faculty's load for a Term.
+- Statuses: **PENDING (default), FOR_REVISION, SUBMITTED**.
+- Deans can view compliance and reasons but do not edit status (view-only).
+- Admin manages master data, users, imports, audit logs, and exports.
+
+**TERM RULE (NO DEADLINES):**
+- No deadlines.
+- Term is OPEN by default.
+- Term becomes **COMPLETED/LOCKED** automatically when **ALL faculty loads for that term are SUBMITTED**.
+- When term is COMPLETED/LOCKED: **block edits but still allow imports**.
+- Admin can optionally **Unlock Term** (admin override) to allow changes.
+
+**SECURITY RULES (MUST):**
+- Enforce authorization server-side (Policies/Gates).
+- Dean scope: **Dean can only see their department**.
+- Registrar Staff can manage submissions (unless later restricted).
+- Admin can see everything.
+
+**CODING RULES (MUST):**
+- Use FormRequest validation.
+- Use DB transactions for status changes + audit log.
+- Use enums for statuses.
+- Use pagination for tables.
+- Avoid fat controllers: put business logic into Service classes.
