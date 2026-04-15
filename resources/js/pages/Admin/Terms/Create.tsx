@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Toggle } from '@/components/ui/toggle';
 import AdminLayout from '@/layouts/AdminLayout';
 import adminRoutes from '@/routes/admin';
 import type { BreadcrumbItem } from '@/types';
@@ -23,6 +22,10 @@ type GeneratedTerm = {
 
 type Props = {
     terms: GeneratedTerm[];
+    previewYears: {
+        year_start: number;
+        year_end: number;
+    } | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -40,10 +43,11 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function CreateTerms({ terms }: Props) {
+export default function CreateTerms({ terms, previewYears }: Props) {
+    const currentYear = new Date().getFullYear();
     const previewForm = useForm({
-        year_start: new Date().getFullYear(),
-        year_end: new Date().getFullYear() + 1,
+        year_start: previewYears?.year_start ?? currentYear,
+        year_end: previewYears?.year_end ?? currentYear + 1,
     });
 
     const commitForm = useForm<{ terms: GeneratedTerm[] }>({
@@ -80,8 +84,7 @@ export default function CreateTerms({ terms }: Props) {
     };
 
     const handleClearPreview = () => {
-        // Clear preview on the backend session and then locally
-        router.post('/admin/terms/create-batch/reset', {}, {
+        router.post(adminRoutes.terms.createBatch.reset().url, {}, {
             preserveScroll: true,
             onSuccess: () => {
                 commitForm.setData('terms', []);
@@ -246,4 +249,3 @@ export default function CreateTerms({ terms }: Props) {
         </AdminLayout>
     );
 }
-

@@ -15,17 +15,20 @@ class CreateTermsController extends Controller
 {
     public function __construct(
         protected CreateTermsService $service,
-    ) {
-    }
+    ) {}
 
     public function form(Request $request): Response
     {
         $this->authorize('create', \App\Models\Term::class);
 
-        $sessionTerms = (array) $request->session()->get('generated_terms', []);
+        $preview = $this->validatedPreviewQuery($request);
+        $terms = $preview === null
+            ? []
+            : $this->previewTerms((int) $preview['year_start'], (int) $preview['year_end']);
 
         return Inertia::render('Admin/Terms/Create', [
-            'terms' => $sessionTerms,
+            'terms' => $terms,
+            'previewYears' => $preview,
         ]);
     }
 
@@ -42,12 +45,13 @@ class CreateTermsController extends Controller
             true,
         );
 
-        $normalized = $this->service->validateDraft($rows);
-
-        $request->session()->put('generated_terms', $normalized);
+        $this->service->validateDraft($rows);
 
         return redirect()
-            ->route('admin.terms.create-batch.form')
+            ->route('admin.terms.create-batch.form', [
+                'year_start' => $data['year_start'],
+                'year_end' => $data['year_end'],
+            ])
             ->with('status', 'preview-ready');
     }
 
@@ -76,5 +80,41 @@ class CreateTermsController extends Controller
 
         return redirect()->route('admin.terms.create-batch.form');
     }
-}
 
+    /**
+     * @return array{year_start: int, year_end: int}|null
+     */
+    private function validatedPreviewQuery(Request $request): ?array
+    {
+        if (! $request->has(['year_start', 'year_end'])) {
+            return null;
+        }
+
+        $yearStart = $request->integer('year_start');
+        $yearEnd = $request->integer('year_end');
+
+        if ($yearStart <= 0 || $yearEnd < $yearStart) {
+            return null;
+        }
+
+        return [
+            'year_start' => $yearStart,
+            'year_end' => $yearEnd,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function previewTerms(int $yearStart, int $yearEnd): array
+    {
+        $rows = $this->service->buildDraft(
+            $yearStart,
+            $yearEnd,
+            true,
+            true,
+        );
+
+        return $this->service->validateDraft($rows);
+    }
+}
