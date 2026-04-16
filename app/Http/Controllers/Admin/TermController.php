@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Terms\Services\TermIndexListingService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\TermStatusUpdateRequest;
 use App\Http\Requests\Admin\TermUpdateRequest;
@@ -13,31 +14,11 @@ use Inertia\Response;
 
 class TermController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, TermIndexListingService $termIndexListingService): Response
     {
         $this->authorize('viewAny', Term::class);
 
-        $query = Term::query()
-            ->withCompletionCounts()
-            ->orderBy('academic_year', 'desc')
-            ->orderBy('term_name');
-
-        $search = $request->input('q');
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('academic_year', 'like', "%{$search}%")
-                    ->orWhere('period_code', 'like', "%{$search}%");
-            });
-        }
-
-        $terms = $query->paginate(15)->withQueryString();
-
-        return Inertia::render('Admin/Terms/Index', [
-            'terms' => $terms,
-            'filters' => [
-                'q' => $search,
-            ],
-        ]);
+        return Inertia::render('Admin/Terms/Index', $termIndexListingService->build($request));
     }
 
     public function edit(Term $term): Response
@@ -76,7 +57,10 @@ class TermController extends Controller
         $term->is_active = $status === 'ACTIVE';
         $term->save();
 
-        return redirect()->route('admin.terms.index')
+        return redirect()->route('admin.terms.index', $request->only([
+            'q',
+            'page',
+        ]))
             ->with('success', $term->is_active ? 'Term activated successfully.' : 'Term deactivated successfully.');
     }
 }

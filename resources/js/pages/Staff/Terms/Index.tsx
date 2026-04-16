@@ -1,6 +1,18 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { Download, Eye, FileSpreadsheet, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import {
+    ChevronDown,
+    Download,
+    Eye,
+    FileSpreadsheet,
+    Search,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    TermIndexPagination,
+    TermIndexTable,
+    type TermIndexGroup,
+    type TermIndexTerm,
+} from '@/components/term-index-table';
 import {
     InlineActionButton,
     InlineActions,
@@ -11,6 +23,11 @@ import {
 } from '@/components/term-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
     Dialog,
     DialogContent,
@@ -27,27 +44,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 import StaffLayout from '@/layouts/StaffLayout';
 import staffRoutes from '@/routes/staff';
 import type { BreadcrumbItem, PaginatedResponse } from '@/types';
 
-type Term = {
-    id: number;
-    period_code: string;
-    term_name: string;
-    academic_year: string;
-    is_active: boolean;
-    total_loads: number;
-    completed_loads: number;
-};
+type ListingMode = 'grouped' | 'flat';
 
 type ReportTerm = {
     id: number;
@@ -62,9 +64,12 @@ type Department = {
 };
 
 type Props = {
-    terms: PaginatedResponse<Term>;
+    listing_mode: ListingMode;
+    grouped_terms: PaginatedResponse<TermIndexGroup> | null;
+    terms: PaginatedResponse<TermIndexTerm> | null;
+    latest_academic_year: string | null;
     filters: {
-        q?: string;
+        q?: string | null;
     };
     reportTerms: ReportTerm[];
     departments: Department[];
@@ -82,13 +87,20 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function StaffTermsIndex({
+    listing_mode,
+    grouped_terms,
     terms,
+    latest_academic_year,
     filters,
     reportTerms,
     departments,
 }: Props) {
-    const [search, setSearch] = useState(filters.q || '');
+    const currentSearch = filters.q ?? '';
+    const [search, setSearch] = useState(currentSearch);
     const [reportDialogOpen, setReportDialogOpen] = useState(false);
+    const [openAcademicYears, setOpenAcademicYears] = useState<
+        Record<string, boolean>
+    >({});
     const [reportFilters, setReportFilters] = useState({
         term_id: '',
         academic_year: '',
@@ -97,15 +109,42 @@ export default function StaffTermsIndex({
         faculty_search: '',
     });
 
-    const academicYears = Array.from(
-        new Set(reportTerms.map((term) => term.academic_year)),
-    ).sort((a, b) => b.localeCompare(a));
+    const pagination = listing_mode === 'grouped' ? grouped_terms : terms;
 
     useEffect(() => {
+        setSearch(currentSearch);
+    }, [currentSearch]);
+
+    useEffect(() => {
+        if (listing_mode !== 'grouped' || !grouped_terms) {
+            return;
+        }
+
+        setOpenAcademicYears((current) =>
+            Object.fromEntries(
+                grouped_terms.data.map((group) => [
+                    group.academic_year,
+                    current[group.academic_year] ??
+                        (group.academic_year === latest_academic_year),
+                ]),
+            ),
+        );
+    }, [grouped_terms, latest_academic_year, listing_mode]);
+
+    useEffect(() => {
+        const trimmedSearch = search.trim();
+
+        if (trimmedSearch === currentSearch) {
+            return;
+        }
+
         const timeout = setTimeout(() => {
             router.get(
                 staffRoutes.terms.index().url,
-                { q: search || undefined },
+                {
+                    q: trimmedSearch || undefined,
+                    page: 1,
+                },
                 {
                     preserveState: true,
                     replace: true,
@@ -115,10 +154,17 @@ export default function StaffTermsIndex({
         }, 300);
 
         return () => clearTimeout(timeout);
-    }, [search]);
+    }, [currentSearch, search]);
+
+    const academicYears = useMemo(
+        () =>
+            Array.from(new Set(reportTerms.map((term) => term.academic_year))).sort(
+                (left, right) => right.localeCompare(left),
+            ),
+        [reportTerms],
+    );
 
     const handleReportExport = (format: 'csv' | 'xlsx' | 'pdf') => {
-        // Prefer academic year export when selected; otherwise require a specific term
         if (!reportFilters.academic_year && !reportFilters.term_id) {
             return;
         }
@@ -146,14 +192,46 @@ export default function StaffTermsIndex({
         }
 
         const queryString = new URLSearchParams(
-            Object.entries(params).reduce((acc, [key, value]) => {
-                acc[key] = String(value);
-                return acc;
-            }, {} as Record<string, string>),
+            Object.entries(params).reduce(
+                (accumulator, [key, value]) => {
+                    accumulator[key] = String(value);
+                    return accumulator;
+                },
+                {} as Record<string, string>,
+            ),
         ).toString();
 
         window.location.href = `${staffRoutes.reports.export().url}?${queryString}`;
     };
+
+    const renderTermsTable = (termRows: TermIndexTerm[]) => (
+        <TermIndexTable
+            terms={termRows}
+            emptyMessage="No terms found."
+            renderStatusCell={(term) => (
+                <TermStatusBadge isActive={term.is_active} />
+            )}
+            renderCompletionCell={(term) => (
+                <TermCompletionBadge
+                    completed={term.completed_loads}
+                    total={term.total_loads}
+                />
+            )}
+            renderActionsCell={(term) => (
+                <InlineActions>
+                    <InlineActionButton
+                        icon={Eye}
+                        label="View"
+                        onClick={() =>
+                            router.visit(
+                                `/staff/terms/${term.id}/faculty-loads`,
+                            )
+                        }
+                    />
+                </InlineActions>
+            )}
+        />
+    );
 
     return (
         <StaffLayout breadcrumbs={breadcrumbs}>
@@ -165,7 +243,10 @@ export default function StaffTermsIndex({
                             <CardTitle>Terms</CardTitle>
                             <CardDescription>View academic terms</CardDescription>
                         </div>
-                        <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
+                        <Dialog
+                            open={reportDialogOpen}
+                            onOpenChange={setReportDialogOpen}
+                        >
                             <DialogTrigger asChild>
                                 <Button variant="outline" size="sm">
                                     <Download className="mr-2 h-4 w-4" />
@@ -184,8 +265,8 @@ export default function StaffTermsIndex({
                                         <Select
                                             value={reportFilters.academic_year}
                                             onValueChange={(value) =>
-                                                setReportFilters((prev) => ({
-                                                    ...prev,
+                                                setReportFilters((previous) => ({
+                                                    ...previous,
                                                     academic_year: value,
                                                 }))
                                             }
@@ -194,9 +275,12 @@ export default function StaffTermsIndex({
                                                 <SelectValue placeholder="All years (use Term below)" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {academicYears.map((ay) => (
-                                                    <SelectItem key={ay} value={ay}>
-                                                        {ay}
+                                                {academicYears.map((academicYear) => (
+                                                    <SelectItem
+                                                        key={academicYear}
+                                                        value={academicYear}
+                                                    >
+                                                        {academicYear}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -208,8 +292,8 @@ export default function StaffTermsIndex({
                                         <Select
                                             value={reportFilters.term_id}
                                             onValueChange={(value) =>
-                                                setReportFilters((prev) => ({
-                                                    ...prev,
+                                                setReportFilters((previous) => ({
+                                                    ...previous,
                                                     term_id: value,
                                                 }))
                                             }
@@ -219,7 +303,10 @@ export default function StaffTermsIndex({
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {reportTerms.map((term) => (
-                                                    <SelectItem key={term.id} value={String(term.id)}>
+                                                    <SelectItem
+                                                        key={term.id}
+                                                        value={String(term.id)}
+                                                    >
                                                         {term.period_code} - {term.academic_year}
                                                     </SelectItem>
                                                 ))}
@@ -232,8 +319,8 @@ export default function StaffTermsIndex({
                                         <Select
                                             value={reportFilters.department_id}
                                             onValueChange={(value) =>
-                                                setReportFilters((prev) => ({
-                                                    ...prev,
+                                                setReportFilters((previous) => ({
+                                                    ...previous,
                                                     department_id: value,
                                                 }))
                                             }
@@ -242,9 +329,14 @@ export default function StaffTermsIndex({
                                                 <SelectValue placeholder="All departments" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {departments.map((dept) => (
-                                                    <SelectItem key={dept.id} value={String(dept.id)}>
-                                                        {dept.name}
+                                                {departments.map((department) => (
+                                                    <SelectItem
+                                                        key={department.id}
+                                                        value={String(
+                                                            department.id,
+                                                        )}
+                                                    >
+                                                        {department.name}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -256,8 +348,8 @@ export default function StaffTermsIndex({
                                         <Select
                                             value={reportFilters.status}
                                             onValueChange={(value) =>
-                                                setReportFilters((prev) => ({
-                                                    ...prev,
+                                                setReportFilters((previous) => ({
+                                                    ...previous,
                                                     status: value,
                                                 }))
                                             }
@@ -279,10 +371,11 @@ export default function StaffTermsIndex({
                                             id="report_faculty_search"
                                             placeholder="Code or name..."
                                             value={reportFilters.faculty_search}
-                                            onChange={(e) =>
-                                                setReportFilters((prev) => ({
-                                                    ...prev,
-                                                    faculty_search: e.target.value,
+                                            onChange={(event) =>
+                                                setReportFilters((previous) => ({
+                                                    ...previous,
+                                                    faculty_search:
+                                                        event.target.value,
                                                 }))
                                             }
                                         />
@@ -293,7 +386,10 @@ export default function StaffTermsIndex({
                                     <Button
                                         variant="outline"
                                         onClick={() => handleReportExport('csv')}
-                                        disabled={!reportFilters.academic_year && !reportFilters.term_id}
+                                        disabled={
+                                            !reportFilters.academic_year &&
+                                            !reportFilters.term_id
+                                        }
                                     >
                                         <Download className="mr-2 h-4 w-4" />
                                         Export CSV
@@ -301,7 +397,10 @@ export default function StaffTermsIndex({
                                     <Button
                                         variant="outline"
                                         onClick={() => handleReportExport('xlsx')}
-                                        disabled={!reportFilters.academic_year && !reportFilters.term_id}
+                                        disabled={
+                                            !reportFilters.academic_year &&
+                                            !reportFilters.term_id
+                                        }
                                     >
                                         <FileSpreadsheet className="mr-2 h-4 w-4" />
                                         Export Excel
@@ -309,7 +408,10 @@ export default function StaffTermsIndex({
                                     <Button
                                         variant="outline"
                                         onClick={() => handleReportExport('pdf')}
-                                        disabled={!reportFilters.academic_year && !reportFilters.term_id}
+                                        disabled={
+                                            !reportFilters.academic_year &&
+                                            !reportFilters.term_id
+                                        }
                                     >
                                         <Download className="mr-2 h-4 w-4" />
                                         Export PDF
@@ -329,87 +431,84 @@ export default function StaffTermsIndex({
                                 </span>
                                 <Input
                                     type="text"
-                                    placeholder="Search by code or AY..."
+                                    placeholder="Search by code, AY, or term..."
                                     value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
                                     className="pl-9"
                                 />
                             </div>
                         </div>
 
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Code</TableHead>
-                                    <TableHead>Term</TableHead>
-                                    <TableHead>Academic Year</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Completion</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {terms.data.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                                            No terms found.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    terms.data.map((term) => (
-                                        <TableRow key={term.id}>
-                                            <TableCell className="text-left">{term.period_code}</TableCell>
-                                            <TableCell>{term.term_name}</TableCell>
-                                            <TableCell>{term.academic_year}</TableCell>
-                                            <TableCell>
-                                                <TermStatusBadge
-                                                    isActive={term.is_active}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <TermCompletionBadge
-                                                    completed={
-                                                        term.completed_loads
-                                                    }
-                                                    total={term.total_loads}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <InlineActions>
-                                                    <InlineActionButton
-                                                        icon={Eye}
-                                                        label="View"
-                                                        onClick={() =>
-                                                            router.visit(
-                                                                `/staff/terms/${term.id}/faculty-loads`,
-                                                            )
-                                                        }
-                                                    />
-                                                </InlineActions>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                        {listing_mode === 'grouped' ? (
+                            grouped_terms && grouped_terms.data.length > 0 ? (
+                                <div className="space-y-3">
+                                    {grouped_terms.data.map((group) => {
+                                        const isOpen =
+                                            openAcademicYears[
+                                                group.academic_year
+                                            ] ?? true;
 
-                        {terms.links && terms.links.length > 3 && (
-                            <div className="mt-4 flex justify-center gap-2">
-                                {terms.links.map((link, index) => (
-                                    <Link
-                                        key={index}
-                                        href={link.url || '#'}
-                                        className={`px-3 py-1 rounded border ${
-                                            link.active
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'hover:bg-accent'
-                                        } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    >
-                                        <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                                    </Link>
-                                ))}
-                            </div>
+                                        return (
+                                            <Collapsible
+                                                key={group.academic_year}
+                                                open={isOpen}
+                                                onOpenChange={(open) =>
+                                                    setOpenAcademicYears(
+                                                        (current) => ({
+                                                            ...current,
+                                                            [group.academic_year]:
+                                                                open,
+                                                        }),
+                                                    )
+                                                }
+                                                className="overflow-hidden rounded-lg border"
+                                            >
+                                                <CollapsibleTrigger asChild>
+                                                    <button
+                                                        type="button"
+                                                        className="flex w-full items-center justify-between gap-3 bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted"
+                                                    >
+                                                        <div>
+                                                            <p className="font-semibold text-foreground">
+                                                                {group.academic_year}
+                                                            </p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {group.terms.length}{' '}
+                                                                term
+                                                                {group.terms.length ===
+                                                                1
+                                                                    ? ''
+                                                                    : 's'}
+                                                            </p>
+                                                        </div>
+                                                        <ChevronDown
+                                                            className={cn(
+                                                                'h-4 w-4 text-muted-foreground transition-transform',
+                                                                isOpen &&
+                                                                    'rotate-180',
+                                                            )}
+                                                        />
+                                                    </button>
+                                                </CollapsibleTrigger>
+                                                <CollapsibleContent className="border-t">
+                                                    {renderTermsTable(group.terms)}
+                                                </CollapsibleContent>
+                                            </Collapsible>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="rounded-lg border border-dashed px-4 py-10 text-center text-muted-foreground">
+                                    No terms found.
+                                </div>
+                            )
+                        ) : (
+                            renderTermsTable(terms?.data ?? [])
                         )}
+
+                        <TermIndexPagination pagination={pagination} />
                     </CardContent>
                 </Card>
             </div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Domain\Terms\Services\TermIndexListingService;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Term;
@@ -11,24 +12,11 @@ use Inertia\Response;
 
 class TermController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, TermIndexListingService $termIndexListingService): Response
     {
         $this->authorize('viewAny', Term::class);
 
-        $query = Term::query()
-            ->withCompletionCounts()
-            ->orderBy('academic_year', 'desc')
-            ->orderBy('term_name');
-
-        $search = $request->input('q');
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('academic_year', 'like', "%{$search}%")
-                    ->orWhere('period_code', 'like', "%{$search}%");
-            });
-        }
-
-        $terms = $query->paginate(15)->withQueryString();
+        $listing = $termIndexListingService->build($request);
 
         $reportTerms = Term::query()
             ->orderByDesc('academic_year')
@@ -40,10 +28,7 @@ class TermController extends Controller
             ->get(['id', 'name']);
 
         return Inertia::render('Staff/Terms/Index', [
-            'terms' => $terms,
-            'filters' => [
-                'q' => $search,
-            ],
+            ...$listing,
             'reportTerms' => $reportTerms,
             'departments' => $departments,
         ]);

@@ -1,6 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Eye, Pencil, Search } from 'lucide-react';
+import { ChevronDown, Eye, Pencil, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import {
+    TermIndexPagination,
+    TermIndexTable,
+    type TermIndexGroup,
+    type TermIndexTerm,
+} from '@/components/term-index-table';
 import {
     InlineActionButton,
     InlineActions,
@@ -17,33 +23,26 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import AdminLayout from '@/layouts/AdminLayout';
 import adminRoutes from '@/routes/admin';
 import type { BreadcrumbItem, PaginatedResponse } from '@/types';
 
-type Term = {
-    id: number;
-    period_code: string;
-    term_name: string;
-    academic_year: string;
-    is_active: boolean;
-    total_loads: number;
-    completed_loads: number;
-};
+type ListingMode = 'grouped' | 'flat';
 
 type Props = {
-    terms: PaginatedResponse<Term>;
+    listing_mode: ListingMode;
+    grouped_terms: PaginatedResponse<TermIndexGroup> | null;
+    terms: PaginatedResponse<TermIndexTerm> | null;
+    latest_academic_year: string | null;
     filters: {
-        q?: string;
+        q?: string | null;
     };
 };
 
@@ -58,15 +57,56 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function TermsIndex({ terms, filters }: Props) {
-    const [search, setSearch] = useState(filters.q || '');
+export default function TermsIndex({
+    listing_mode,
+    grouped_terms,
+    terms,
+    latest_academic_year,
+    filters,
+}: Props) {
+    const currentSearch = filters.q ?? '';
+    const [search, setSearch] = useState(currentSearch);
     const [updatingTermId, setUpdatingTermId] = useState<number | null>(null);
+    const [openAcademicYears, setOpenAcademicYears] = useState<
+        Record<string, boolean>
+    >({});
+
+    const pagination = listing_mode === 'grouped' ? grouped_terms : terms;
 
     useEffect(() => {
+        setSearch(currentSearch);
+    }, [currentSearch]);
+
+    useEffect(() => {
+        if (listing_mode !== 'grouped' || !grouped_terms) {
+            return;
+        }
+
+        setOpenAcademicYears((current) =>
+            Object.fromEntries(
+                grouped_terms.data.map((group) => [
+                    group.academic_year,
+                    current[group.academic_year] ??
+                        (group.academic_year === latest_academic_year),
+                ]),
+            ),
+        );
+    }, [grouped_terms, latest_academic_year, listing_mode]);
+
+    useEffect(() => {
+        const trimmedSearch = search.trim();
+
+        if (trimmedSearch === currentSearch) {
+            return;
+        }
+
         const timeout = setTimeout(() => {
             router.get(
                 adminRoutes.terms.index().url,
-                { q: search || undefined },
+                {
+                    q: trimmedSearch || undefined,
+                    page: 1,
+                },
                 {
                     preserveState: true,
                     replace: true,
@@ -76,7 +116,7 @@ export default function TermsIndex({ terms, filters }: Props) {
         }, 300);
 
         return () => clearTimeout(timeout);
-    }, [search]);
+    }, [currentSearch, search]);
 
     const updateTermStatus = (
         termId: number,
@@ -85,7 +125,15 @@ export default function TermsIndex({ terms, filters }: Props) {
         setUpdatingTermId(termId);
 
         router.patch(
-            `/admin/terms/${termId}/status`,
+            adminRoutes.terms.status(
+                { term: termId },
+                {
+                    query: {
+                        q: search.trim() || undefined,
+                        page: pagination?.current_page,
+                    },
+                },
+            ).url,
             { status },
             {
                 preserveScroll: true,
@@ -97,6 +145,65 @@ export default function TermsIndex({ terms, filters }: Props) {
             },
         );
     };
+
+    const renderTermsTable = (termRows: TermIndexTerm[]) => (
+        <TermIndexTable
+            terms={termRows}
+            emptyMessage="No terms found."
+            renderStatusCell={(term) => (
+                <select
+                    value={term.is_active ? 'ACTIVE' : 'INACTIVE'}
+                    onChange={(event) =>
+                        updateTermStatus(
+                            term.id,
+                            event.target.value as 'ACTIVE' | 'INACTIVE',
+                        )
+                    }
+                    disabled={updatingTermId === term.id}
+                    aria-label={`Update term status for ${term.period_code}`}
+                    className="h-8 rounded-md border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                >
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                </select>
+            )}
+            renderCompletionCell={(term) => (
+                <div
+                    className="w-fit"
+                    aria-label={`Completion ${termCompletionLabel(term.completed_loads, term.total_loads)}`}
+                >
+                    <TermCompletionBadge
+                        completed={term.completed_loads}
+                        total={term.total_loads}
+                    />
+                </div>
+            )}
+            renderActionsCell={(term) => (
+                <InlineActions>
+                    <InlineActionButton
+                        icon={Eye}
+                        label="View"
+                        onClick={() =>
+                            router.visit(
+                                `/admin/terms/${term.id}/faculty-loads`,
+                            )
+                        }
+                    />
+                    <InlineActionButton
+                        icon={Pencil}
+                        label="Edit"
+                        onClick={() =>
+                            router.visit(
+                                adminRoutes.terms.edit({
+                                    term: term.id,
+                                }).url,
+                            )
+                        }
+                    />
+                </InlineActions>
+            )}
+        />
+    );
 
     return (
         <AdminLayout breadcrumbs={breadcrumbs}>
@@ -111,11 +218,13 @@ export default function TermsIndex({ terms, filters }: Props) {
                                     Manage academic terms
                                 </CardDescription>
                             </div>
-                            <Link
-                                href={adminRoutes.terms.createBatch.form().url}
-                            >
-                                <Button>Create Terms</Button>
-                            </Link>
+                            <Button asChild>
+                                <Link
+                                    href={adminRoutes.terms.createBatch.form().url}
+                                >
+                                    Create Terms
+                                </Link>
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
@@ -126,144 +235,84 @@ export default function TermsIndex({ terms, filters }: Props) {
                                 </span>
                                 <Input
                                     type="text"
-                                    placeholder="Search by code or AY..."
+                                    placeholder="Search by code, AY, or term..."
                                     value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
                                     className="pl-9"
                                 />
                             </div>
                         </div>
 
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Code</TableHead>
-                                    <TableHead>Term</TableHead>
-                                    <TableHead>Academic Year</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Completion</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {terms.data.length === 0 ? (
-                                    <TableRow className="py-0">
-                                        <TableCell
-                                            colSpan={6}
-                                            className="text-center text-muted-foreground"
-                                        >
-                                            No terms found.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    terms.data.map((term) => (
-                                        <TableRow key={term.id}>
-                                            <TableCell className="py-0 text-left">
-                                                {term.period_code}
-                                            </TableCell>
-                                            <TableCell className="py-0">
-                                                {term.term_name}
-                                            </TableCell>
-                                            <TableCell className="py-0">
-                                                {term.academic_year}
-                                            </TableCell>
-                                            <TableCell>
-                                                <select
-                                                    value={
-                                                        term.is_active
-                                                            ? 'ACTIVE'
-                                                            : 'INACTIVE'
-                                                    }
-                                                    onChange={(event) =>
-                                                        updateTermStatus(
-                                                            term.id,
-                                                            event.target
-                                                                .value as
-                                                                | 'ACTIVE'
-                                                                | 'INACTIVE',
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        updatingTermId ===
-                                                        term.id
-                                                    }
-                                                    aria-label={`Update term status for ${term.period_code}`}
-                                                    className="h-8 rounded-md border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                                                >
-                                                    <option value="ACTIVE">
-                                                        Active
-                                                    </option>
-                                                    <option value="INACTIVE">
-                                                        Inactive
-                                                    </option>
-                                                </select>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div
-                                                    className="w-fit"
-                                                    aria-label={`Completion ${termCompletionLabel(term.completed_loads, term.total_loads)}`}
-                                                >
-                                                    <TermCompletionBadge
-                                                        completed={
-                                                            term.completed_loads
-                                                        }
-                                                        total={term.total_loads}
-                                                    />
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="py-0">
-                                                <InlineActions>
-                                                    <InlineActionButton
-                                                        icon={Eye}
-                                                        label="View"
-                                                        onClick={() =>
-                                                            router.visit(
-                                                                `/admin/terms/${term.id}/faculty-loads`,
-                                                            )
-                                                        }
-                                                    />
-                                                    <InlineActionButton
-                                                        icon={Pencil}
-                                                        label="Edit"
-                                                        onClick={() =>
-                                                            router.visit(
-                                                                adminRoutes.terms.edit(
-                                                                    {
-                                                                        term: term.id,
-                                                                    },
-                                                                ).url,
-                                                            )
-                                                        }
-                                                    />
-                                                </InlineActions>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+                        {listing_mode === 'grouped' ? (
+                            grouped_terms && grouped_terms.data.length > 0 ? (
+                                <div className="space-y-3">
+                                    {grouped_terms.data.map((group) => {
+                                        const isOpen =
+                                            openAcademicYears[
+                                                group.academic_year
+                                            ] ?? true;
 
-                        {terms.links && terms.links.length > 3 && (
-                            <div className="mt-4 flex justify-center gap-2">
-                                {terms.links.map((link, index) => (
-                                    <Link
-                                        key={index}
-                                        href={link.url || '#'}
-                                        className={`rounded border px-3 py-1 ${
-                                            link.active
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'hover:bg-accent'
-                                        } ${!link.url ? 'cursor-not-allowed opacity-50' : ''}`}
-                                    >
-                                        <span
-                                            dangerouslySetInnerHTML={{
-                                                __html: link.label,
-                                            }}
-                                        />
-                                    </Link>
-                                ))}
-                            </div>
+                                        return (
+                                            <Collapsible
+                                                key={group.academic_year}
+                                                open={isOpen}
+                                                onOpenChange={(open) =>
+                                                    setOpenAcademicYears(
+                                                        (current) => ({
+                                                            ...current,
+                                                            [group.academic_year]:
+                                                                open,
+                                                        }),
+                                                    )
+                                                }
+                                                className="overflow-hidden rounded-lg border"
+                                            >
+                                                <CollapsibleTrigger asChild>
+                                                    <button
+                                                        type="button"
+                                                        className="flex w-full items-center justify-between gap-3 bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted"
+                                                    >
+                                                        <div>
+                                                            <p className="font-semibold text-foreground">
+                                                                {group.academic_year}
+                                                            </p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {group.terms.length}{' '}
+                                                                term
+                                                                {group.terms.length ===
+                                                                1
+                                                                    ? ''
+                                                                    : 's'}
+                                                            </p>
+                                                        </div>
+                                                        <ChevronDown
+                                                            className={cn(
+                                                                'h-4 w-4 text-muted-foreground transition-transform',
+                                                                isOpen &&
+                                                                    'rotate-180',
+                                                            )}
+                                                        />
+                                                    </button>
+                                                </CollapsibleTrigger>
+                                                <CollapsibleContent className="border-t">
+                                                    {renderTermsTable(group.terms)}
+                                                </CollapsibleContent>
+                                            </Collapsible>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="rounded-lg border border-dashed px-4 py-10 text-center text-muted-foreground">
+                                    No terms found.
+                                </div>
+                            )
+                        ) : (
+                            renderTermsTable(terms?.data ?? [])
                         )}
+
+                        <TermIndexPagination pagination={pagination} />
                     </CardContent>
                 </Card>
             </div>
