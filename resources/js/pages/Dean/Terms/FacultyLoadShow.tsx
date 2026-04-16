@@ -1,5 +1,9 @@
 import { Head } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
+import {
+    TermCompletionBadge,
+    TermStatusBadge,
+} from '@/components/term-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +30,9 @@ type Term = {
     period_code: string;
     term_name: string;
     academic_year: string;
+    is_active: boolean;
+    total_loads: number;
+    completed_loads: number;
 };
 
 type LoadItem = {
@@ -62,7 +69,6 @@ type Load = {
 type Props = {
     term: Term;
     load: Load;
-    isLocked: boolean;
 };
 
 function displayValue(value: unknown): string {
@@ -125,7 +131,8 @@ function itemStatusBadge(status: LoadItem['status']) {
     );
 }
 
-export default function FacultyLoadShow({ term, load, isLocked }: Props) {
+export default function FacultyLoadShow({ term, load }: Props) {
+    const isInactive = !term.is_active;
     const termLoadsHref = deanRoutes.terms.facultyLoads.show({
         term: term.id,
     }).url;
@@ -185,6 +192,11 @@ export default function FacultyLoadShow({ term, load, isLocked }: Props) {
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
+                            <TermStatusBadge isActive={term.is_active} />
+                            <TermCompletionBadge
+                                completed={term.completed_loads}
+                                total={term.total_loads}
+                            />
                             {loadProgressBadge(submittedSubjects, totalSubjects)}
                             <Button
                                 type="button"
@@ -198,9 +210,9 @@ export default function FacultyLoadShow({ term, load, isLocked }: Props) {
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {isLocked && (
+                        {isInactive && (
                             <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                                This term is currently locked.
+                                This term is inactive.
                             </div>
                         )}
 

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\FacultyLoadStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -46,5 +48,37 @@ class Term extends Model
     public function facultyLoads(): HasMany
     {
         return $this->hasMany(FacultyLoad::class);
+    }
+
+    /**
+     * @param  Builder<Term>  $query
+     * @return Builder<Term>
+     */
+    public function scopeWithCompletionCounts(Builder $query): Builder
+    {
+        return $query->withCount([
+            'facultyLoads as total_loads',
+            'facultyLoads as completed_loads' => function ($countQuery): void {
+                $countQuery->whereIn('status', [
+                    FacultyLoadStatus::SUBMITTED->value,
+                    FacultyLoadStatus::CLEARED->value,
+                ]);
+            },
+        ]);
+    }
+
+    public function loadCompletionCounts(): static
+    {
+        $this->loadCount([
+            'facultyLoads as total_loads',
+            'facultyLoads as completed_loads' => function ($countQuery): void {
+                $countQuery->whereIn('status', [
+                    FacultyLoadStatus::SUBMITTED->value,
+                    FacultyLoadStatus::CLEARED->value,
+                ]);
+            },
+        ]);
+
+        return $this;
     }
 }

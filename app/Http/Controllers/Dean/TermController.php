@@ -17,6 +17,7 @@ class TermController extends Controller
         $search = (string) $request->input('q', '');
 
         $query = Term::query()
+            ->withCompletionCounts()
             ->orderByDesc('academic_year')
             ->orderBy('term_name');
 

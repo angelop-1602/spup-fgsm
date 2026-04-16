@@ -1,7 +1,15 @@
 import { Head, router } from '@inertiajs/react';
-import { ArrowLeft, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Reply, Send, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
+import {
+    TermCompletionBadge,
+    TermStatusBadge,
+} from '@/components/term-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,12 +28,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
     Table,
     TableBody,
     TableCell,
@@ -43,6 +45,9 @@ type Term = {
     period_code: string;
     term_name: string;
     academic_year: string;
+    is_active: boolean;
+    total_loads: number;
+    completed_loads: number;
 };
 
 type LoadItem = {
@@ -79,7 +84,6 @@ type Load = {
 type Props = {
     term: Term;
     load: Load;
-    isLocked: boolean;
 };
 
 function displayValue(value: unknown): string {
@@ -145,7 +149,8 @@ function itemStatusBadge(status: LoadItem['status']) {
     );
 }
 
-export default function FacultyLoadShow({ term, load, isLocked }: Props) {
+export default function FacultyLoadShow({ term, load }: Props) {
+    const isInactive = !term.is_active;
     const termLoadsHref = `/staff/terms/${term.id}/faculty-loads`;
     const [returnDialogItem, setReturnDialogItem] = useState<LoadItem | null>(
         null,
@@ -183,9 +188,9 @@ export default function FacultyLoadShow({ term, load, isLocked }: Props) {
         status: 'PENDING' | 'RETURNED' | 'SUBMITTED',
         remarks?: string,
     ) => {
-        if (isLocked) {
+        if (isInactive) {
             toast.error(
-                'This term is locked. Unlock it before updating subject statuses.',
+                'This term is inactive. Activate it before updating subject statuses.',
             );
             return;
         }
@@ -225,9 +230,9 @@ export default function FacultyLoadShow({ term, load, isLocked }: Props) {
     };
 
     const openReturnedDialog = (item: LoadItem) => {
-        if (isLocked) {
+        if (isInactive) {
             toast.error(
-                'This term is locked. Unlock it before updating subject statuses.',
+                'This term is inactive. Activate it before updating subject statuses.',
             );
             return;
         }
@@ -342,6 +347,11 @@ export default function FacultyLoadShow({ term, load, isLocked }: Props) {
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
+                            <TermStatusBadge isActive={term.is_active} />
+                            <TermCompletionBadge
+                                completed={term.completed_loads}
+                                total={term.total_loads}
+                            />
                             {loadProgressBadge(
                                 submittedSubjects,
                                 totalSubjects,
@@ -358,10 +368,10 @@ export default function FacultyLoadShow({ term, load, isLocked }: Props) {
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {isLocked && (
+                        {isInactive && (
                             <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                                This term is currently locked. Subject statuses
-                                cannot be updated.
+                                This term is inactive. Subject statuses can be
+                                updated only when the term is active.
                             </div>
                         )}
 
@@ -509,74 +519,56 @@ export default function FacultyLoadShow({ term, load, isLocked }: Props) {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="px-4 py-4 align-top">
-                                                    <div className="flex min-h-8 justify-center">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger
-                                                                asChild
-                                                            >
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-8 w-8"
-                                                                    aria-label={`Update status for ${displayValue(item.subject_code)}`}
-                                                                >
-                                                                    <MoreVertical className="h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem
-                                                                    disabled={
-                                                                        isLocked ||
-                                                                        updatingItemId !==
-                                                                            null ||
-                                                                        item.status ===
-                                                                            'PENDING'
-                                                                    }
-                                                                    onClick={() =>
-                                                                        updateItemStatus(
-                                                                            item,
-                                                                            'PENDING',
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Set Pending
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem
-                                                                    disabled={
-                                                                        isLocked ||
-                                                                        updatingItemId !==
-                                                                            null ||
-                                                                        item.status ===
-                                                                            'SUBMITTED'
-                                                                    }
-                                                                    onClick={() =>
-                                                                        updateItemStatus(
-                                                                            item,
-                                                                            'SUBMITTED',
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Set
-                                                                    Submitted
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem
-                                                                    disabled={
-                                                                        isLocked ||
-                                                                        updatingItemId !==
-                                                                            null
-                                                                    }
-                                                                    onClick={() =>
-                                                                        openReturnedDialog(
-                                                                            item,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Return with
-                                                                    Remarks
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </div>
+                                                    <InlineActions className="justify-center">
+                                                        <InlineActionButton
+                                                            icon={Undo2}
+                                                            label="Pending"
+                                                            disabled={
+                                                                isInactive ||
+                                                                updatingItemId !==
+                                                                    null ||
+                                                                item.status ===
+                                                                    'PENDING'
+                                                            }
+                                                            onClick={() =>
+                                                                updateItemStatus(
+                                                                    item,
+                                                                    'PENDING',
+                                                                )
+                                                            }
+                                                        />
+                                                        <InlineActionButton
+                                                            icon={Send}
+                                                            label="Submit"
+                                                            disabled={
+                                                                isInactive ||
+                                                                updatingItemId !==
+                                                                    null ||
+                                                                item.status ===
+                                                                    'SUBMITTED'
+                                                            }
+                                                            onClick={() =>
+                                                                updateItemStatus(
+                                                                    item,
+                                                                    'SUBMITTED',
+                                                                )
+                                                            }
+                                                        />
+                                                        <InlineActionButton
+                                                            icon={Reply}
+                                                            label="Return"
+                                                            disabled={
+                                                                isInactive ||
+                                                                updatingItemId !==
+                                                                    null
+                                                            }
+                                                            onClick={() =>
+                                                                openReturnedDialog(
+                                                                    item,
+                                                                )
+                                                            }
+                                                        />
+                                                    </InlineActions>
                                                 </TableCell>
                                             </TableRow>
                                         ))

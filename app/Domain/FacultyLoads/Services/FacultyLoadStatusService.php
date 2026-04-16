@@ -26,8 +26,8 @@ class FacultyLoadStatusService
 
     public function setReceivedNow(FacultyLoad $load, User $actor): void
     {
-        if ($this->termCompletionService->isLocked($load->term)) {
-            throw new RuntimeException('Term is locked; cannot modify faculty load.');
+        if (! $load->term->is_active) {
+            throw new RuntimeException('Term is inactive; cannot modify faculty load.');
         }
 
         DB::transaction(function () use ($load, $actor): void {
@@ -49,8 +49,8 @@ class FacultyLoadStatusService
 
     public function changeStatus(FacultyLoad $load, FacultyLoadStatus $newStatus, ?string $remarks, User $actor): void
     {
-        if ($this->termCompletionService->isLocked($load->term)) {
-            throw new RuntimeException('Term is locked; cannot change status.');
+        if (! $load->term->is_active) {
+            throw new RuntimeException('Term is inactive; cannot change status.');
         }
 
         DB::transaction(function () use ($load, $newStatus, $remarks, $actor): void {

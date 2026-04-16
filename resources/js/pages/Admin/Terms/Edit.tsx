@@ -11,16 +11,13 @@ type Term = {
     id: number;
     academic_year: string;
     term_name: string;
-    is_completed: boolean;
-    admin_override_unlocked: boolean;
 };
 
 type Props = {
     term: Term;
-    autoLockEnabled: boolean;
 };
 
-export default function TermsEdit({ term, autoLockEnabled }: Props) {
+export default function TermsEdit({ term }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Admin Dashboard',
@@ -46,9 +43,6 @@ export default function TermsEdit({ term, autoLockEnabled }: Props) {
         put(adminRoutes.terms.update({ term: term.id }).url);
     };
 
-    const canEdit =
-        !autoLockEnabled || !term.is_completed || term.admin_override_unlocked;
-
     return (
         <AdminLayout breadcrumbs={breadcrumbs}>
             <Head title="Edit Term" />
@@ -56,13 +50,7 @@ export default function TermsEdit({ term, autoLockEnabled }: Props) {
                 <Card>
                     <CardHeader>
                         <CardTitle>Edit Term</CardTitle>
-                        <CardDescription>
-                            {!canEdit && (
-                                <span className="text-destructive">
-                                    This term is locked. Unlock it to edit.
-                                </span>
-                            )}
-                        </CardDescription>
+                        <CardDescription>Update the selected term.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
@@ -73,7 +61,6 @@ export default function TermsEdit({ term, autoLockEnabled }: Props) {
                                     value={data.academic_year}
                                     onChange={(e) => setData('academic_year', e.target.value)}
                                     required
-                                    disabled={!canEdit}
                                 />
                                 {errors.academic_year && (
                                     <p className="text-sm text-destructive mt-1">{errors.academic_year}</p>
@@ -87,7 +74,6 @@ export default function TermsEdit({ term, autoLockEnabled }: Props) {
                                     value={data.term_name}
                                     onChange={(e) => setData('term_name', e.target.value)}
                                     required
-                                    disabled={!canEdit}
                                 />
                                 {errors.term_name && (
                                     <p className="text-sm text-destructive mt-1">{errors.term_name}</p>
@@ -95,7 +81,7 @@ export default function TermsEdit({ term, autoLockEnabled }: Props) {
                             </div>
 
                             <div className="flex gap-2">
-                                <Button type="submit" disabled={processing || !canEdit}>
+                                <Button type="submit" disabled={processing}>
                                     Update Term
                                 </Button>
                                 <Link href={adminRoutes.terms.index().url}>

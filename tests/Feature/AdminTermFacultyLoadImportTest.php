@@ -368,10 +368,6 @@ test('admin can update individual subject status for a faculty load item', funct
     $load->refresh();
     expect($load->status)->toBe(FacultyLoadStatus::SUBMITTED);
 
-    $term->refresh();
-    $term->admin_override_unlocked = true;
-    $term->save();
-
     $this->actingAs($admin)
         ->patch(route('admin.terms.faculty-loads.items.update-status', [
             'term' => $term->id,

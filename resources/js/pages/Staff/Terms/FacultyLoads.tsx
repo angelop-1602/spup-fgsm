@@ -5,7 +5,6 @@ import {
     ChevronsLeft,
     ChevronsRight,
     Eye,
-    MoreVertical,
     Pencil,
     Plus,
     Search,
@@ -14,6 +13,14 @@ import {
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
+import {
+    TermCompletionBadge,
+    TermStatusBadge,
+} from '@/components/term-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,12 +38,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -64,8 +65,8 @@ type Term = {
     term_name: string;
     academic_year: string;
     is_active: boolean;
-    is_completed: boolean;
-    admin_override_unlocked: boolean;
+    total_loads: number;
+    completed_loads: number;
 };
 
 type Department = {
@@ -116,8 +117,6 @@ type Props = {
         per_page?: number;
     };
     importSummary?: ImportSummary | null;
-    isLocked: boolean;
-    autoLockEnabled: boolean;
 };
 
 type PreviewRow = {
@@ -387,9 +386,8 @@ export default function TermFacultyLoadsPage({
     assignedFacultyIds,
     filters,
     importSummary,
-    isLocked,
-    autoLockEnabled,
 }: Props) {
+    const isInactive = !term.is_active;
     const [search, setSearch] = useState(filters.q || '');
     const [rowsPerPage, setRowsPerPage] = useState(
         String(filters.per_page ?? loads.per_page ?? 10),
@@ -541,9 +539,9 @@ export default function TermFacultyLoadsPage({
     };
 
     const openFilePicker = () => {
-        if (isLocked) {
+        if (isInactive) {
             toast.error(
-                'This term is locked. Unlock it before importing faculty loads.',
+                'This term is inactive. Activate it before importing faculty loads.',
             );
             return;
         }
@@ -578,9 +576,9 @@ export default function TermFacultyLoadsPage({
     };
 
     const openEditLoadDialog = (load: FacultyLoad) => {
-        if (isLocked) {
+        if (isInactive) {
             toast.error(
-                'This term is locked. Unlock it before editing faculty loads.',
+                'This term is inactive. Activate it before editing faculty loads.',
             );
             return;
         }
@@ -843,7 +841,7 @@ export default function TermFacultyLoadsPage({
                                 disabled={
                                     importForm.processing ||
                                     !previewData ||
-                                    isLocked
+                                    isInactive
                                 }
                             >
                                 {importForm.processing
@@ -967,7 +965,7 @@ export default function TermFacultyLoadsPage({
                             disabled={
                                 importForm.processing ||
                                 previewLoading ||
-                                isLocked
+                                isInactive
                             }
                         >
                             <Upload className="mr-2 h-4 w-4" />
@@ -993,41 +991,15 @@ export default function TermFacultyLoadsPage({
                             </CardDescription>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            {isLocked ? (
-                                <Badge variant="destructive">Locked</Badge>
-                            ) : term.is_completed ? (
-                                autoLockEnabled ? (
-                                    <Badge className="bg-emerald-500 text-emerald-50">
-                                        Unlocked
-                                    </Badge>
-                                ) : (
-                                    <Badge
-                                        variant="outline"
-                                        className="border-blue-500 text-blue-600"
-                                    >
-                                        Completed
-                                    </Badge>
-                                )
-                            ) : (
-                                <Badge
-                                    variant="outline"
-                                    className="border-emerald-500 text-emerald-700"
-                                >
-                                    Open
-                                </Badge>
-                            )}
-                            {!term.is_active && (
-                                <Badge
-                                    variant="outline"
-                                    className="border-red-500 text-red-600"
-                                >
-                                    Inactive Term
-                                </Badge>
-                            )}
+                            <TermStatusBadge isActive={term.is_active} />
+                            <TermCompletionBadge
+                                completed={term.completed_loads}
+                                total={term.total_loads}
+                            />
                             <Button
                                 type="button"
                                 onClick={openAddLoadDialog}
-                                disabled={isLocked}
+                                disabled={isInactive}
                             >
                                 <Plus className="mr-2 h-4 w-4" />
                                 Add Faculty Load
@@ -1035,10 +1007,10 @@ export default function TermFacultyLoadsPage({
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {isLocked && (
+                        {isInactive && (
                             <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                                This term is currently locked. Unlock it first
-                                to import or modify faculty loads.
+                                This term is inactive. Activate it to import or
+                                modify faculty loads.
                             </div>
                         )}
 
@@ -1109,47 +1081,30 @@ export default function TermFacultyLoadsPage({
                                                 ).toLocaleString()}
                                             </TableCell>
                                             <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger
-                                                        asChild
-                                                    >
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            aria-label="Load actions"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    `/staff/terms/${term.id}/faculty-loads/${load.id}`,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                            View
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            disabled={
-                                                                isLocked ||
-                                                                !load.faculty
-                                                                    ?.id
-                                                            }
-                                                            onClick={() =>
-                                                                openEditLoadDialog(
-                                                                    load,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                <InlineActions>
+                                                    <InlineActionButton
+                                                        icon={Eye}
+                                                        label="View"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                `/staff/terms/${term.id}/faculty-loads/${load.id}`,
+                                                            )
+                                                        }
+                                                    />
+                                                    <InlineActionButton
+                                                        icon={Pencil}
+                                                        label="Edit"
+                                                        disabled={
+                                                            isInactive ||
+                                                            !load.faculty?.id
+                                                        }
+                                                        onClick={() =>
+                                                            openEditLoadDialog(
+                                                                load,
+                                                            )
+                                                        }
+                                                    />
+                                                </InlineActions>
                                             </TableCell>
                                         </TableRow>
                                     ))

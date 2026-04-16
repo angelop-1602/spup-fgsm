@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Terms\Services\TermCompletionService;
-use App\Enums\FacultyLoadStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\TermStatusUpdateRequest;
 use App\Http\Requests\Admin\TermUpdateRequest;
 use App\Models\Term;
 use Illuminate\Http\RedirectResponse;
@@ -14,24 +13,12 @@ use Inertia\Response;
 
 class TermController extends Controller
 {
-    public function __construct(
-        private TermCompletionService $termCompletionService,
-    ) {}
-
     public function index(Request $request): Response
     {
         $this->authorize('viewAny', Term::class);
 
         $query = Term::query()
-            ->withCount([
-                'facultyLoads as total_loads',
-                'facultyLoads as submitted_loads' => function ($q) {
-                    $q->whereIn('status', [
-                        FacultyLoadStatus::SUBMITTED->value,
-                        FacultyLoadStatus::CLEARED->value,
-                    ]);
-                },
-            ])
+            ->withCompletionCounts()
             ->orderBy('academic_year', 'desc')
             ->orderBy('term_name');
 
@@ -80,33 +67,13 @@ class TermController extends Controller
             ->with('success', 'Term deleted successfully.');
     }
 
-    public function unlock(Request $request, Term $term): RedirectResponse
-    {
-        $this->authorize('unlock', $term);
-
-        $term->admin_override_unlocked = true;
-        $term->save();
-
-        return redirect()->route('admin.terms.index')
-            ->with('success', 'Term unlocked successfully.');
-    }
-
-    public function lock(Request $request, Term $term): RedirectResponse
-    {
-        $this->authorize('lock', $term);
-
-        $term->admin_override_unlocked = false;
-        $term->save();
-
-        return redirect()->route('admin.terms.index')
-            ->with('success', 'Term locked successfully.');
-    }
-
-    public function toggleActive(Request $request, Term $term): RedirectResponse
+    public function updateStatus(TermStatusUpdateRequest $request, Term $term): RedirectResponse
     {
         $this->authorize('update', $term);
 
-        $term->is_active = ! $term->is_active;
+        $status = (string) $request->validated('status');
+
+        $term->is_active = $status === 'ACTIVE';
         $term->save();
 
         return redirect()->route('admin.terms.index')

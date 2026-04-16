@@ -5,11 +5,14 @@ import {
     ChevronsLeft,
     ChevronsRight,
     Eye,
-    MoreVertical,
     Search,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -18,12 +21,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Table,
@@ -183,8 +180,7 @@ export default function ClearanceIndexPage({ terms, filters }: Props) {
                                     <TableHead>Term</TableHead>
                                     <TableHead>Academic Year</TableHead>
                                     <TableHead>Completed</TableHead>
-                                    <TableHead>Pending Clearance</TableHead>
-                                    <TableHead>Cleared</TableHead>
+                                    <TableHead>Clearance</TableHead>
                                     <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -192,7 +188,7 @@ export default function ClearanceIndexPage({ terms, filters }: Props) {
                                 {terms.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={7}
+                                            colSpan={6}
                                             className="text-center text-muted-foreground"
                                         >
                                             No terms found.
@@ -218,45 +214,28 @@ export default function ClearanceIndexPage({ terms, filters }: Props) {
                                             <TableCell>
                                                 <Badge
                                                     variant="outline"
-                                                    className="border-amber-500 text-amber-700"
+                                                    className="border-slate-400 text-slate-700"
                                                 >
-                                                    {term.submitted_loads}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge className="bg-emerald-500 text-emerald-50">
+                                                    Pending {term.submitted_loads} / Cleared{' '}
                                                     {term.cleared_loads}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            aria-label="Clearance term actions"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    adminRoutes.clearance.show(
-                                                                        {
-                                                                            term: term.id,
-                                                                        },
-                                                                    ).url,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                            View Faculty Loads
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                <InlineActions>
+                                                    <InlineActionButton
+                                                        icon={Eye}
+                                                        label="View"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                adminRoutes.clearance.show(
+                                                                    {
+                                                                        term: term.id,
+                                                                    },
+                                                                ).url,
+                                                            )
+                                                        }
+                                                    />
+                                                </InlineActions>
                                             </TableCell>
                                         </TableRow>
                                     ))

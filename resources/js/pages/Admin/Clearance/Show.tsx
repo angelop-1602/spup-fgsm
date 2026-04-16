@@ -7,12 +7,19 @@ import {
     ChevronsRight,
     Eye,
     FileText,
-    MoreVertical,
     Search,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
+import {
+    TermCompletionBadge,
+    TermStatusBadge,
+} from '@/components/term-state';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -21,12 +28,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -52,6 +53,9 @@ type Term = {
     period_code: string;
     term_name: string;
     academic_year: string;
+    is_active: boolean;
+    total_loads: number;
+    completed_loads: number;
 };
 
 type Department = {
@@ -248,14 +252,17 @@ export default function ClearanceShowPage({ term, loads, filters }: Props) {
                             </CardDescription>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
+                            <TermStatusBadge isActive={term.is_active} />
+                            <TermCompletionBadge
+                                completed={term.completed_loads}
+                                total={term.total_loads}
+                            />
                             <Badge
                                 variant="outline"
-                                className="border-amber-500 text-amber-700"
+                                className="border-slate-400 text-slate-700"
                             >
-                                Pending Clearance (Page): {submittedCount}
-                            </Badge>
-                            <Badge className="bg-emerald-500 text-emerald-50">
-                                Cleared (Page): {clearedCount}
+                                Clearance (Page): Pending {submittedCount} / Cleared{' '}
+                                {clearedCount}
                             </Badge>
                             <Button variant="outline" onClick={exportPdf}>
                                 <FileText className="mr-2 h-4 w-4" />
@@ -264,6 +271,12 @@ export default function ClearanceShowPage({ term, loads, filters }: Props) {
                         </div>
                     </CardHeader>
                     <CardContent>
+                        {!term.is_active && (
+                            <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                This term is inactive. Activate it before clearing faculty loads.
+                            </div>
+                        )}
+
                         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div className="w-full max-w-sm">
                                 <div className="relative">
@@ -350,50 +363,37 @@ export default function ClearanceShowPage({ term, loads, filters }: Props) {
                                                 ).toLocaleString()}
                                             </TableCell>
                                             <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            aria-label="Clearance load actions"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    adminRoutes.terms.facultyLoads.view(
-                                                                        {
-                                                                            term: term.id,
-                                                                            facultyLoad:
-                                                                                load.id,
-                                                                        },
-                                                                    ).url,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                            View Subjects
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            disabled={
-                                                                load.status !==
+                                                <InlineActions>
+                                                    <InlineActionButton
+                                                        icon={Eye}
+                                                        label="View"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                adminRoutes.terms.facultyLoads.view(
+                                                                    {
+                                                                        term: term.id,
+                                                                        facultyLoad:
+                                                                            load.id,
+                                                                    },
+                                                                ).url,
+                                                            )
+                                                        }
+                                                    />
+                                                    <InlineActionButton
+                                                        icon={CheckCircle2}
+                                                        label="Clear"
+                                                        disabled={
+                                                            !term.is_active ||
+                                                            load.status !==
                                                                 'SUBMITTED'
-                                                            }
-                                                            onClick={() =>
-                                                                markAsCleared(
-                                                                    load.id,
-                                                                )
-                                                            }
-                                                        >
-                                                            <CheckCircle2 className="h-4 w-4" />
-                                                            Mark as Cleared
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                        }
+                                                        onClick={() =>
+                                                            markAsCleared(
+                                                                load.id,
+                                                            )
+                                                        }
+                                                    />
+                                                </InlineActions>
                                             </TableCell>
                                         </TableRow>
                                     ))

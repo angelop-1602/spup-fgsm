@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Dean;
 
-use App\Domain\Terms\Services\TermCompletionService;
 use App\Enums\FacultyLoadItemStatus;
 use App\Http\Controllers\Controller;
 use App\Models\FacultyLoad;
@@ -13,14 +12,11 @@ use Inertia\Response;
 
 class TermFacultyLoadController extends Controller
 {
-    public function __construct(
-        private TermCompletionService $termCompletionService,
-    ) {}
-
     public function show(Request $request, Term $term): Response
     {
         $this->authorize('view', $term);
         $this->authorize('viewAny', FacultyLoad::class);
+        $term->loadCompletionCounts();
 
         $user = $request->user();
         $departmentId = $user?->department_id;
@@ -89,15 +85,14 @@ class TermFacultyLoadController extends Controller
                 'term_name',
                 'academic_year',
                 'is_active',
-                'is_completed',
-                'admin_override_unlocked',
+                'total_loads',
+                'completed_loads',
             ]),
             'loads' => $loads,
             'filters' => [
                 'q' => $search,
                 'per_page' => $perPage,
             ],
-            'isLocked' => $this->termCompletionService->isLocked($term),
         ]);
     }
 
@@ -105,6 +100,7 @@ class TermFacultyLoadController extends Controller
     {
         $this->authorize('view', $term);
         $this->authorize('view', $facultyLoad);
+        $term->loadCompletionCounts();
 
         $user = $request->user();
         $departmentId = $user?->department_id;
@@ -135,6 +131,9 @@ class TermFacultyLoadController extends Controller
                 'period_code',
                 'term_name',
                 'academic_year',
+                'is_active',
+                'total_loads',
+                'completed_loads',
             ]),
             'load' => [
                 'id' => (int) $facultyLoad->id,
@@ -165,7 +164,6 @@ class TermFacultyLoadController extends Controller
                     ];
                 })->values()->all(),
             ],
-            'isLocked' => $this->termCompletionService->isLocked($term),
         ]);
     }
 }

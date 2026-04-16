@@ -5,11 +5,18 @@ import {
     ChevronsLeft,
     ChevronsRight,
     Eye,
-    MoreVertical,
     Search,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
+import {
+    TermCompletionBadge,
+    TermStatusBadge,
+} from '@/components/term-state';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -18,12 +25,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -50,8 +51,8 @@ type Term = {
     term_name: string;
     academic_year: string;
     is_active: boolean;
-    is_completed: boolean;
-    admin_override_unlocked: boolean;
+    total_loads: number;
+    completed_loads: number;
 };
 
 type Department = {
@@ -82,8 +83,6 @@ type Props = {
         q?: string;
         per_page?: number;
     };
-    isLocked: boolean;
-    autoLockEnabled: boolean;
 };
 
 const perPageOptions = ['10', '25', '50'];
@@ -156,9 +155,8 @@ export default function TermFacultyLoadsPage({
     term,
     loads,
     filters,
-    isLocked,
-    autoLockEnabled,
 }: Props) {
+    const isInactive = !term.is_active;
     const [search, setSearch] = useState(filters.q || '');
     const [rowsPerPage, setRowsPerPage] = useState(
         String(filters.per_page ?? loads.per_page ?? 10),
@@ -237,43 +235,17 @@ export default function TermFacultyLoadsPage({
                             </CardDescription>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                            {isLocked ? (
-                                <Badge variant="destructive">Locked</Badge>
-                            ) : term.is_completed ? (
-                                autoLockEnabled ? (
-                                    <Badge className="bg-emerald-500 text-emerald-50">
-                                        Unlocked
-                                    </Badge>
-                                ) : (
-                                    <Badge
-                                        variant="outline"
-                                        className="border-blue-500 text-blue-600"
-                                    >
-                                        Completed
-                                    </Badge>
-                                )
-                            ) : (
-                                <Badge
-                                    variant="outline"
-                                    className="border-emerald-500 text-emerald-700"
-                                >
-                                    Open
-                                </Badge>
-                            )}
-                            {!term.is_active && (
-                                <Badge
-                                    variant="outline"
-                                    className="border-red-500 text-red-600"
-                                >
-                                    Inactive Term
-                                </Badge>
-                            )}
+                            <TermStatusBadge isActive={term.is_active} />
+                            <TermCompletionBadge
+                                completed={term.completed_loads}
+                                total={term.total_loads}
+                            />
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {isLocked && (
+                        {isInactive && (
                             <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                                This term is currently locked. Loads can be viewed but cannot be changed.
+                                This term is inactive. Loads are view-only until it is activated.
                             </div>
                         )}
 
@@ -340,36 +312,23 @@ export default function TermFacultyLoadsPage({
                                                 ).toLocaleString()}
                                             </TableCell>
                                             <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            aria-label="Load actions"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    deanRoutes.terms.facultyLoads.view(
-                                                                        {
-                                                                            term: term.id,
-                                                                            facultyLoad:
-                                                                                load.id,
-                                                                        },
-                                                                    ).url,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                            View
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                <InlineActions>
+                                                    <InlineActionButton
+                                                        icon={Eye}
+                                                        label="View"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                deanRoutes.terms.facultyLoads.view(
+                                                                    {
+                                                                        term: term.id,
+                                                                        facultyLoad:
+                                                                            load.id,
+                                                                    },
+                                                                ).url,
+                                                            )
+                                                        }
+                                                    />
+                                                </InlineActions>
                                             </TableCell>
                                         </TableRow>
                                     ))

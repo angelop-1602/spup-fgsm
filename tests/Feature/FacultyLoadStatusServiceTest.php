@@ -1,7 +1,6 @@
 <?php
 
 use App\Domain\FacultyLoads\Services\FacultyLoadStatusService;
-use App\Domain\Terms\Services\TermCompletionService;
 use App\Enums\FacultyLoadStatus;
 use App\Models\Department;
 use App\Models\Faculty;
@@ -9,8 +8,6 @@ use App\Models\FacultyLoad;
 use App\Models\Term;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use InvalidArgumentException;
-use RuntimeException;
 
 uses(RefreshDatabase::class);
 
@@ -26,6 +23,7 @@ function createBasicGraph(): array
     $term = Term::create([
         'academic_year' => '2025-2026',
         'term_name' => '1st Sem',
+        'is_active' => true,
     ]);
 
     /** @var Faculty $faculty */
@@ -57,7 +55,7 @@ test('FOR_REVISION requires remarks', function (): void {
     $service = app(FacultyLoadStatusService::class);
 
     expect(fn () => $service->changeStatus($load, FacultyLoadStatus::FOR_REVISION, null, $actor))
-        ->toThrow(InvalidArgumentException::class);
+        ->toThrow(\InvalidArgumentException::class);
 });
 
 test('SUBMITTED requires received_at', function (): void {
@@ -67,7 +65,7 @@ test('SUBMITTED requires received_at', function (): void {
     $service = app(FacultyLoadStatusService::class);
 
     expect(fn () => $service->changeStatus($load, FacultyLoadStatus::SUBMITTED, 'ok', $actor))
-        ->toThrow(InvalidArgumentException::class);
+        ->toThrow(\InvalidArgumentException::class);
 });
 
 test('term auto completes when all loads submitted', function (): void {
@@ -108,20 +106,19 @@ test('term auto completes when all loads submitted', function (): void {
         ->and($term->completed_at)->not->toBeNull();
 });
 
-test('completed term blocks status changes unless override unlocked', function (): void {
+test('inactive term blocks status changes until reactivated', function (): void {
     ['load' => $load, 'term' => $term, 'actor' => $actor] = createBasicGraph();
 
-    $term->is_completed = true;
-    $term->admin_override_unlocked = false;
+    $term->is_active = false;
     $term->save();
 
     /** @var FacultyLoadStatusService $service */
     $service = app(FacultyLoadStatusService::class);
 
     expect(fn () => $service->changeStatus($load->fresh(), FacultyLoadStatus::FOR_REVISION, 'remarks', $actor))
-        ->toThrow(RuntimeException::class);
+        ->toThrow(\RuntimeException::class);
 
-    $term->admin_override_unlocked = true;
+    $term->is_active = true;
     $term->save();
 
     $service->changeStatus($load->fresh(), FacultyLoadStatus::FOR_REVISION, 'remarks', $actor);

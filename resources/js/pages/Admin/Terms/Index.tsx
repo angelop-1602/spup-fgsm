@@ -1,7 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { MoreVertical, Search } from 'lucide-react';
+import { Eye, Pencil, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
+import {
+    TermCompletionBadge,
+    termCompletionLabel,
+} from '@/components/term-state';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -10,12 +17,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Table,
@@ -35,8 +36,8 @@ type Term = {
     term_name: string;
     academic_year: string;
     is_active: boolean;
-    is_completed: boolean;
-    admin_override_unlocked: boolean;
+    total_loads: number;
+    completed_loads: number;
 };
 
 type Props = {
@@ -44,7 +45,6 @@ type Props = {
     filters: {
         q?: string;
     };
-    autoLockEnabled: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -58,8 +58,9 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
+export default function TermsIndex({ terms, filters }: Props) {
     const [search, setSearch] = useState(filters.q || '');
+    const [updatingTermId, setUpdatingTermId] = useState<number | null>(null);
 
     useEffect(() => {
         const timeout = setTimeout(() => {
@@ -77,22 +78,22 @@ export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
         return () => clearTimeout(timeout);
     }, [search]);
 
-    const handleUnlock = (termId: number) => {
-        router.post(
-            adminRoutes.terms.unlock({ term: termId }).url,
-            {},
-            {
-                preserveScroll: true,
-            },
-        );
-    };
+    const updateTermStatus = (
+        termId: number,
+        status: 'ACTIVE' | 'INACTIVE',
+    ) => {
+        setUpdatingTermId(termId);
 
-    const handleLock = (termId: number) => {
-        router.post(
-            adminRoutes.terms.lock({ term: termId }).url,
-            {},
+        router.patch(
+            `/admin/terms/${termId}/status`,
+            { status },
             {
                 preserveScroll: true,
+                onFinish: () => {
+                    setUpdatingTermId((current) =>
+                        current === termId ? null : current,
+                    );
+                },
             },
         );
     };
@@ -140,6 +141,7 @@ export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
                                     <TableHead>Term</TableHead>
                                     <TableHead>Academic Year</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Completion</TableHead>
                                     <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -147,7 +149,7 @@ export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
                                 {terms.data.length === 0 ? (
                                     <TableRow className="py-0">
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="text-center text-muted-foreground"
                                         >
                                             No terms found.
@@ -166,130 +168,74 @@ export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
                                                 {term.academic_year}
                                             </TableCell>
                                             <TableCell>
-                                                {!term.is_active ? (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-red-500 text-red-600"
-                                                    >
-                                                        Inactive
-                                                    </Badge>
-                                                ) : autoLockEnabled ? (
-                                                    term.is_completed ? (
-                                                        term.admin_override_unlocked ? (
-                                                            <Badge className="bg-emerald-500 text-emerald-50">
-                                                                Unlocked
-                                                            </Badge>
-                                                        ) : (
-                                                            <Badge variant="destructive">
-                                                                Locked
-                                                            </Badge>
+                                                <select
+                                                    value={
+                                                        term.is_active
+                                                            ? 'ACTIVE'
+                                                            : 'INACTIVE'
+                                                    }
+                                                    onChange={(event) =>
+                                                        updateTermStatus(
+                                                            term.id,
+                                                            event.target
+                                                                .value as
+                                                                | 'ACTIVE'
+                                                                | 'INACTIVE',
                                                         )
-                                                    ) : (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="border-emerald-500 text-emerald-600"
-                                                        >
-                                                            Open
-                                                        </Badge>
-                                                    )
-                                                ) : term.is_completed ? (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-blue-500 text-blue-600"
-                                                    >
-                                                        Completed
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-emerald-500 text-emerald-600"
-                                                    >
-                                                        Open
-                                                    </Badge>
-                                                )}
+                                                    }
+                                                    disabled={
+                                                        updatingTermId ===
+                                                        term.id
+                                                    }
+                                                    aria-label={`Update term status for ${term.period_code}`}
+                                                    className="h-8 rounded-md border border-input bg-background px-2.5 text-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                                                >
+                                                    <option value="ACTIVE">
+                                                        Active
+                                                    </option>
+                                                    <option value="INACTIVE">
+                                                        Inactive
+                                                    </option>
+                                                </select>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div
+                                                    className="w-fit"
+                                                    aria-label={`Completion ${termCompletionLabel(term.completed_loads, term.total_loads)}`}
+                                                >
+                                                    <TermCompletionBadge
+                                                        completed={
+                                                            term.completed_loads
+                                                        }
+                                                        total={term.total_loads}
+                                                    />
+                                                </div>
                                             </TableCell>
                                             <TableCell className="py-0">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger
-                                                        asChild
-                                                    >
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    `/admin/terms/${term.id}/faculty-loads`,
-                                                                )
-                                                            }
-                                                        >
-                                                            Manage Faculty Loads
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    adminRoutes.terms.edit(
-                                                                        {
-                                                                            term: term.id,
-                                                                        },
-                                                                    ).url,
-                                                                )
-                                                            }
-                                                        >
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.post(
-                                                                    adminRoutes.terms.toggleActive(
-                                                                        {
-                                                                            term: term.id,
-                                                                        },
-                                                                    ).url,
-                                                                    {},
+                                                <InlineActions>
+                                                    <InlineActionButton
+                                                        icon={Eye}
+                                                        label="View"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                `/admin/terms/${term.id}/faculty-loads`,
+                                                            )
+                                                        }
+                                                    />
+                                                    <InlineActionButton
+                                                        icon={Pencil}
+                                                        label="Edit"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                adminRoutes.terms.edit(
                                                                     {
-                                                                        preserveScroll: true,
+                                                                        term: term.id,
                                                                     },
-                                                                )
-                                                            }
-                                                        >
-                                                            {term.is_active
-                                                                ? 'Set inactive'
-                                                                : 'Set active'}
-                                                        </DropdownMenuItem>
-                                                        {autoLockEnabled &&
-                                                            term.is_completed &&
-                                                            !term.admin_override_unlocked && (
-                                                                <DropdownMenuItem
-                                                                    onClick={() =>
-                                                                        handleUnlock(
-                                                                            term.id,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Unlock term
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                        {autoLockEnabled &&
-                                                            term.is_completed &&
-                                                            term.admin_override_unlocked && (
-                                                                <DropdownMenuItem
-                                                                    onClick={() =>
-                                                                        handleLock(
-                                                                            term.id,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Lock term
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                                ).url,
+                                                            )
+                                                        }
+                                                    />
+                                                </InlineActions>
                                             </TableCell>
                                         </TableRow>
                                     ))

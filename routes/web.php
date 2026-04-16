@@ -50,12 +50,8 @@ Route::prefix('admin')
         // Term management (no manual create route, use generator instead)
         Route::resource('terms', \App\Http\Controllers\Admin\TermController::class)
             ->only(['index', 'edit', 'update', 'destroy']);
-        Route::post('terms/{term}/unlock', [\App\Http\Controllers\Admin\TermController::class, 'unlock'])
-            ->name('terms.unlock');
-        Route::post('terms/{term}/lock', [\App\Http\Controllers\Admin\TermController::class, 'lock'])
-            ->name('terms.lock');
-        Route::post('terms/{term}/toggle-active', [\App\Http\Controllers\Admin\TermController::class, 'toggleActive'])
-            ->name('terms.toggle-active');
+        Route::patch('terms/{term}/status', [\App\Http\Controllers\Admin\TermController::class, 'updateStatus'])
+            ->name('terms.status');
         Route::get('terms/{term}/faculty-loads', [\App\Http\Controllers\Admin\TermFacultyLoadController::class, 'show'])
             ->name('terms.faculty-loads.show');
         Route::get('terms/{term}/faculty-loads/{facultyLoad}', [\App\Http\Controllers\Admin\TermFacultyLoadController::class, 'view'])

@@ -1,14 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { MoreVertical, Search, Plus } from 'lucide-react';
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Table,
@@ -132,30 +130,23 @@ export default function DeansIndex({ users, filters }: Props) {
                                             <TableCell>{user.email}</TableCell>
                                             <TableCell>{user.department?.name ?? '—'}</TableCell>
                                             <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon">
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    adminRoutes.deans.edit({ dean: user.id }).url,
-                                                                )
-                                                            }
-                                                        >
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleDelete(user.id)}
-                                                            className="text-red-600"
-                                                        >
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                <InlineActions>
+                                                    <InlineActionButton
+                                                        icon={Pencil}
+                                                        label="Edit"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                adminRoutes.deans.edit({ dean: user.id }).url,
+                                                            )
+                                                        }
+                                                    />
+                                                    <InlineActionButton
+                                                        icon={Trash2}
+                                                        label="Delete"
+                                                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                        onClick={() => handleDelete(user.id)}
+                                                    />
+                                                </InlineActions>
                                             </TableCell>
                                         </TableRow>
                                     ))

@@ -1,7 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { MoreVertical, Search } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
+import {
+    TermCompletionBadge,
+    TermStatusBadge,
+} from '@/components/term-state';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -10,12 +17,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Table,
@@ -35,8 +36,8 @@ type Term = {
     term_name: string;
     academic_year: string;
     is_active: boolean;
-    is_completed: boolean;
-    admin_override_unlocked: boolean;
+    total_loads: number;
+    completed_loads: number;
 };
 
 type Props = {
@@ -44,7 +45,6 @@ type Props = {
     filters: {
         q?: string;
     };
-    autoLockEnabled: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -58,7 +58,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
+export default function TermsIndex({ terms, filters }: Props) {
     const [search, setSearch] = useState(filters.q || '');
 
     useEffect(() => {
@@ -113,6 +113,7 @@ export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
                                     <TableHead>Term</TableHead>
                                     <TableHead>Academic Year</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead>Completion</TableHead>
                                     <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -120,7 +121,7 @@ export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
                                 {terms.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="text-center text-muted-foreground"
                                         >
                                             No terms found.
@@ -137,74 +138,34 @@ export default function TermsIndex({ terms, filters, autoLockEnabled }: Props) {
                                                 {term.academic_year}
                                             </TableCell>
                                             <TableCell>
-                                                {!term.is_active ? (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-red-500 text-red-600"
-                                                    >
-                                                        Inactive
-                                                    </Badge>
-                                                ) : autoLockEnabled ? (
-                                                    term.is_completed ? (
-                                                        term.admin_override_unlocked ? (
-                                                            <Badge className="bg-emerald-500 text-emerald-50">
-                                                                Unlocked
-                                                            </Badge>
-                                                        ) : (
-                                                            <Badge variant="destructive">
-                                                                Locked
-                                                            </Badge>
-                                                        )
-                                                    ) : (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="border-emerald-500 text-emerald-600"
-                                                        >
-                                                            Open
-                                                        </Badge>
-                                                    )
-                                                ) : term.is_completed ? (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-blue-500 text-blue-600"
-                                                    >
-                                                        Completed
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="border-emerald-500 text-emerald-600"
-                                                    >
-                                                        Open
-                                                    </Badge>
-                                                )}
+                                                <TermStatusBadge
+                                                    isActive={term.is_active}
+                                                />
                                             </TableCell>
                                             <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() =>
-                                                                router.visit(
-                                                                    deanRoutes.terms.facultyLoads.show(
-                                                                        {
-                                                                            term: term.id,
-                                                                        },
-                                                                    ).url,
-                                                                )
-                                                            }
-                                                        >
-                                                            View Faculty Loads
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                <TermCompletionBadge
+                                                    completed={
+                                                        term.completed_loads
+                                                    }
+                                                    total={term.total_loads}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                                <InlineActions>
+                                                    <InlineActionButton
+                                                        icon={Eye}
+                                                        label="View"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                deanRoutes.terms.facultyLoads.show(
+                                                                    {
+                                                                        term: term.id,
+                                                                    },
+                                                                ).url,
+                                                            )
+                                                        }
+                                                    />
+                                                </InlineActions>
                                             </TableCell>
                                         </TableRow>
                                     ))

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Staff;
 
-use App\Enums\FacultyLoadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Term;
@@ -17,15 +16,7 @@ class TermController extends Controller
         $this->authorize('viewAny', Term::class);
 
         $query = Term::query()
-            ->withCount([
-                'facultyLoads as total_loads',
-                'facultyLoads as submitted_loads' => function ($q) {
-                    $q->whereIn('status', [
-                        FacultyLoadStatus::SUBMITTED->value,
-                        FacultyLoadStatus::CLEARED->value,
-                    ]);
-                },
-            ])
+            ->withCompletionCounts()
             ->orderBy('academic_year', 'desc')
             ->orderBy('term_name');
 

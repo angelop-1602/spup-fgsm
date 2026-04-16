@@ -37,19 +37,10 @@ class TermPolicy
 
     /**
      * Determine whether the user can update the model.
-     * Only allowed if term is not completed OR admin_override_unlocked=true.
      */
     public function update(User $user, Term $term): bool
     {
-        if (! $user->hasRole('ADMIN')) {
-            return false;
-        }
-
-        if (! config('terms.auto_lock', true)) {
-            return true;
-        }
-
-        return ! $term->is_completed || $term->admin_override_unlocked;
+        return $user->hasRole('ADMIN');
     }
 
     /**

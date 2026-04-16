@@ -4,14 +4,19 @@ import {
     ChevronRight,
     ChevronsLeft,
     ChevronsRight,
-    MoreVertical,
+    Pencil,
     Plus,
     Search,
+    Trash2,
     Upload,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import {
+    InlineActionButton,
+    InlineActions,
+} from '@/components/inline-actions';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -28,12 +33,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -696,44 +695,32 @@ export default function FacultyIndex({
                                                     {member.emp_status ?? '-'}
                                                 </td>
                                                 <td className="px-4 py-2 align-middle">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger
-                                                            asChild
-                                                        >
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                            >
-                                                                <MoreVertical className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem
-                                                                onClick={() =>
-                                                                    router.visit(
-                                                                        adminRoutes.faculty.edit(
-                                                                            {
-                                                                                faculty:
-                                                                                    member.id,
-                                                                            },
-                                                                        ).url,
-                                                                    )
-                                                                }
-                                                            >
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={() =>
-                                                                    handleDelete(
-                                                                        member.id,
-                                                                    )
-                                                                }
-                                                                className="text-red-600"
-                                                            >
-                                                                Delete
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                    <InlineActions>
+                                                        <InlineActionButton
+                                                            icon={Pencil}
+                                                            label="Edit"
+                                                            onClick={() =>
+                                                                router.visit(
+                                                                    adminRoutes.faculty.edit(
+                                                                        {
+                                                                            faculty:
+                                                                                member.id,
+                                                                        },
+                                                                    ).url,
+                                                                )
+                                                            }
+                                                        />
+                                                        <InlineActionButton
+                                                            icon={Trash2}
+                                                            label="Delete"
+                                                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                            onClick={() =>
+                                                                handleDelete(
+                                                                    member.id,
+                                                                )
+                                                            }
+                                                        />
+                                                    </InlineActions>
                                                 </td>
                                             </tr>
                                         ))

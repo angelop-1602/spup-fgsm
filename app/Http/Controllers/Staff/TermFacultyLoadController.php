@@ -51,6 +51,7 @@ class TermFacultyLoadController extends Controller
     {
         $this->authorize('view', $term);
         $this->authorize('viewAny', FacultyLoad::class);
+        $term->loadCompletionCounts();
 
         $search = (string) $request->input('q', '');
         $perPage = (int) $request->integer('per_page', 10);
@@ -116,8 +117,8 @@ class TermFacultyLoadController extends Controller
                 'term_name',
                 'academic_year',
                 'is_active',
-                'is_completed',
-                'admin_override_unlocked',
+                'total_loads',
+                'completed_loads',
             ]),
             'loads' => $loads,
             'facultyOptions' => $facultyOptions,
@@ -127,7 +128,6 @@ class TermFacultyLoadController extends Controller
                 'per_page' => $perPage,
             ],
             'importSummary' => $request->session()->get('term_faculty_load_import_summary'),
-            'isLocked' => $this->termCompletionService->isLocked($term),
         ]);
     }
 
@@ -135,6 +135,7 @@ class TermFacultyLoadController extends Controller
     {
         $this->authorize('view', $term);
         $this->authorize('view', $facultyLoad);
+        $term->loadCompletionCounts();
 
         if ((int) $facultyLoad->term_id !== (int) $term->id) {
             abort(404);
@@ -154,6 +155,9 @@ class TermFacultyLoadController extends Controller
                 'period_code',
                 'term_name',
                 'academic_year',
+                'is_active',
+                'total_loads',
+                'completed_loads',
             ]),
             'load' => [
                 'id' => (int) $facultyLoad->id,
@@ -184,7 +188,6 @@ class TermFacultyLoadController extends Controller
                     ];
                 })->values()->all(),
             ],
-            'isLocked' => $this->termCompletionService->isLocked($term),
         ]);
     }
 
@@ -197,14 +200,14 @@ class TermFacultyLoadController extends Controller
             abort(404);
         }
 
-        if ($this->termCompletionService->isLocked($term)) {
+        if (! $term->is_active) {
             return redirect()
                 ->route('staff.terms.faculty-loads.view', [
                     'term' => $term->id,
                     'facultyLoad' => $facultyLoad->id,
                 ])
                 ->withErrors([
-                    'status' => 'This term is locked. Unlock the term before updating subject status.',
+                    'status' => 'This term is inactive. Activate it before updating subject status.',
                 ]);
         }
 
@@ -298,11 +301,11 @@ class TermFacultyLoadController extends Controller
     {
         $this->authorize('create', FacultyLoad::class);
 
-        if ($this->termCompletionService->isLocked($term)) {
+        if (! $term->is_active) {
             return redirect()
                 ->route('staff.terms.faculty-loads.show', $term)
                 ->withErrors([
-                    'file' => 'This term is locked. Unlock the term before importing faculty loads.',
+                    'file' => 'This term is inactive. Activate it before importing faculty loads.',
                 ]);
         }
 

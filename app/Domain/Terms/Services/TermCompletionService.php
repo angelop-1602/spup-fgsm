@@ -10,10 +10,6 @@ class TermCompletionService
 {
     public function recalculate(Term $term, User $actor): void
     {
-        if ($this->isLocked($term)) {
-            return;
-        }
-
         $total = $term->facultyLoads()->count();
         $completed = $term->facultyLoads()
             ->whereIn('status', [

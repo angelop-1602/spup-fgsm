@@ -58,6 +58,8 @@ test('registrar staff can view faculty loads across all departments', function (
         ->assertInertia(fn (Assert $page) => $page
             ->component('Staff/Terms/FacultyLoads')
             ->has('loads.data', 2)
+            ->where('term.total_loads', 2)
+            ->where('term.completed_loads', 1)
         );
 
     $this->actingAs($staff)
@@ -69,6 +71,8 @@ test('registrar staff can view faculty loads across all departments', function (
         ->assertInertia(fn (Assert $page) => $page
             ->component('Staff/Terms/FacultyLoadShow')
             ->where('load.id', $siteLoad->id)
+            ->where('term.total_loads', 2)
+            ->where('term.completed_loads', 1)
         );
 
     $this->actingAs($staff)
@@ -80,6 +84,8 @@ test('registrar staff can view faculty loads across all departments', function (
         ->assertInertia(fn (Assert $page) => $page
             ->component('Staff/Terms/FacultyLoadShow')
             ->where('load.id', $sasteLoad->id)
+            ->where('term.total_loads', 2)
+            ->where('term.completed_loads', 1)
         );
 });
 
@@ -136,6 +142,8 @@ test('dean can only view faculty loads from assigned department', function (): v
             ->component('Dean/Terms/FacultyLoads')
             ->has('loads.data', 1)
             ->where('loads.data.0.id', $siteLoad->id)
+            ->where('term.total_loads', 2)
+            ->where('term.completed_loads', 0)
         );
 
     $this->actingAs($dean)
@@ -147,6 +155,8 @@ test('dean can only view faculty loads from assigned department', function (): v
         ->assertInertia(fn (Assert $page) => $page
             ->component('Dean/Terms/FacultyLoadShow')
             ->where('load.id', $siteLoad->id)
+            ->where('term.total_loads', 2)
+            ->where('term.completed_loads', 0)
         );
 
     $this->actingAs($dean)

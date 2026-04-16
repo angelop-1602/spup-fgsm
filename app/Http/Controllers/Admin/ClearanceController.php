@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\FacultyLoad;
 use App\Models\Term;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -67,6 +68,7 @@ class ClearanceController extends Controller
     {
         $this->authorize('view', $term);
         $this->authorize('viewAny', FacultyLoad::class);
+        $term->loadCompletionCounts();
 
         $search = (string) $request->input('q', '');
         $perPage = (int) $request->integer('per_page', 10);
@@ -113,6 +115,9 @@ class ClearanceController extends Controller
                 'period_code',
                 'term_name',
                 'academic_year',
+                'is_active',
+                'total_loads',
+                'completed_loads',
             ]),
             'loads' => $loads,
             'filters' => [
@@ -129,6 +134,12 @@ class ClearanceController extends Controller
 
         if ((int) $facultyLoad->term_id !== (int) $term->id) {
             abort(404);
+        }
+
+        if (! $term->is_active) {
+            return back()->withErrors([
+                'status' => 'This term is inactive. Activate it before clearing faculty loads.',
+            ]);
         }
 
         /** @var User|null $actor */
