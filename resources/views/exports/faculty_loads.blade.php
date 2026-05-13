@@ -1,7 +1,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>SPUP-Faculty Grading Sheet Management System - Faculty Loads Report</title>
+    <title>SPUP-Faculty Management System - Faculty Loads Report</title>
     <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
 
     <style>
@@ -91,7 +91,7 @@
         </table>
     </div>
 
-    <h3>SPUP-Faculty Grading Sheet Management System - Faculty Loads Report</h3>
+    <h3>SPUP-Faculty Management System - Faculty Loads Report</h3>
     @php
         $termLabel = '';
         if (isset($term) && $term) {

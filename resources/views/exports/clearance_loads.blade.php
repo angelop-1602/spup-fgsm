@@ -1,7 +1,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>SPUP-Faculty Grading Sheet Management System - Clearance Report</title>
+    <title>SPUP-Faculty Management System - Clearance Report</title>
     <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
 
     <style>
@@ -102,7 +102,7 @@
         </table>
     </div>
 
-    <div class="report-title">{{ $reportTitle ?? 'SPUP-Faculty Grading Sheet Management System - Clearance Report' }}</div>
+    <div class="report-title">{{ $reportTitle ?? 'SPUP-Faculty Management System - Clearance Report' }}</div>
     <div class="report-term">{{ $term->term_name ?? '' }} ({{ $term->academic_year ?? '' }})</div>
 
     <table class="data-table">

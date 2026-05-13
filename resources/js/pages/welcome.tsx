@@ -82,11 +82,7 @@ export default function Welcome({
                         <h1 className="mt-3 text-balance text-2xl font-bold sm:text-4xl">
                             {BRAND_LONG_NAME}
                         </h1>
-                        <p className="mt-4 text-sm leading-relaxed text-white/85 sm:text-base">
-                            Manage faculty grading workflows in one place:
-                            term setup, faculty loads, subject status updates,
-                            and audit tracking.
-                        </p>
+
 
                         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
                             {auth.user ? (

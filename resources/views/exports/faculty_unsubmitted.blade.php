@@ -1,7 +1,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>{{ $reportTitle ?? 'SPUP-Faculty Grading Sheet Management System - Faculty Unsubmitted Report' }}</title>
+    <title>{{ $reportTitle ?? 'SPUP-Faculty System - Faculty Unsubmitted Report' }}</title>
     <link href="https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&display=swap" rel="stylesheet">
 
     <style>
@@ -114,7 +114,7 @@
         </table>
     </div>
 
-    <div class="report-title">{{ $reportTitle ?? 'SPUP-Faculty Grading Sheet Management System - Faculty Unsubmitted Report' }}</div>
+    <div class="report-title">{{ $reportTitle ?? 'SPUP-Faculty Management System - Faculty Unsubmitted Report' }}</div>
 
     @php
         $facultyName = trim(implode(' ', array_filter([
