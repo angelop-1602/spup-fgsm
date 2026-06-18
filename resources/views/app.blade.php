@@ -30,7 +30,7 @@
             }
         </style>
 
-        <title inertia>{{ config('app.name', 'SPUP-FGSMS') }}</title>
+        <title inertia>{{ config('app.name', 'SPUP-FMS') }}</title>
 
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
         <link rel="icon" href="/favicon.ico" sizes="any">

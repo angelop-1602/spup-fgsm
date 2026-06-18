@@ -9,7 +9,7 @@ alwaysApply: false
 - Frontend: React + TS + Tailwind + shadcn/ui
 - Database: MySQL
 
-**PROJECT:** Faculty Grading Sheets Management (hardcopy grading sheet submission tracking).
+**PROJECT:** SPUP Faculty Management System (registrar-focused faculty management and grading sheet submission tracking).
 
 **NON-HALLUCINATION RULES (MUST FOLLOW):**
 1) **DO NOT invent pages, tables, columns, fields, or flows not listed in this prompt.**

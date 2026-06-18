@@ -70,8 +70,8 @@ class PdfExportController extends Controller
             'preparedBy' => $request->user()?->name,
             'showConfirmedBy' => true,
             'reportTitle' => $context === 'clearance'
-                ? 'SPUP-Faculty Management System - Clearance Report'
-                : 'SPUP-Faculty Management System - Faculty Loads Report',
+                ? 'SPUP-FMS - Clearance Report'
+                : 'SPUP-FMS - Faculty Loads Report',
             'statusMode' => $context,
         ])->render();
 
@@ -97,7 +97,7 @@ class PdfExportController extends Controller
             'registrarName' => $this->registrarName(),
             'preparedBy' => $request->user()?->name,
             'showConfirmedBy' => true,
-            'reportTitle' => 'SPUP-Faculty Management System - Faculty Unsubmitted Report',
+            'reportTitle' => 'SPUP-FMS - Faculty Unsubmitted Report',
         ])->render();
 
         return Pdf::loadHTML($html)

@@ -1,4 +1,4 @@
-## Faculty Grading Sheets Management (FGSM)
+## SPUP Faculty Management System (SPUP-FMS)
 
 This project is a Laravel 12 application using Inertia React (TypeScript), Tailwind, and shadcn/ui.
 
